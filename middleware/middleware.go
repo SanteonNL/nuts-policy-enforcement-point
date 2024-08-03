@@ -1,11 +1,18 @@
 package middleware
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/rs/zerolog/log"
 	"net/http"
+	"net/url"
 	"strings"
 )
+
+type userInfoContextKeyType struct{}
+
+var userInfoContextKey = userInfoContextKeyType{}
 
 // Secure wraps the given handler in middleware that checks the access token in the request headers.
 // If the access token is valid, the handler is called. If the access token is invalid, a 401 Unauthorized response is returned.
@@ -26,8 +33,42 @@ func Secure(config Config, handler func(response http.ResponseWriter, request *h
 			respondUnauthorized(config, "invalid_request", "invalid/expired token", response)
 			return
 		}
-		handler(response, request)
+		userInfo := *introspectionResponse
+		newCtx := context.WithValue(request.Context(), userInfoContextKey, map[string]interface{}(userInfo))
+		handler(response, request.WithContext(newCtx))
 	}
+}
+
+// UserInfo returns the user information that was resulted from the introspection of the access token.
+// If the user information is not available (meaning Token Introspection wasn't performed), nil is returned.
+func UserInfo(ctx context.Context) map[string]interface{} {
+	userInfo, _ := ctx.Value(userInfoContextKey).(map[string]interface{})
+	return userInfo
+}
+
+type IntrospectionResult map[string]interface{}
+
+func (i IntrospectionResult) Active() bool {
+	b, ok := i["active"].(bool)
+	return ok && b
+}
+
+func IntrospectAccessToken(accessToken string, endpoint string, httpClient *http.Client) (*IntrospectionResult, error) {
+	body := url.Values{
+		"token": {accessToken},
+	}
+	httpResponse, err := httpClient.PostForm(endpoint, body)
+	if err != nil {
+		return nil, fmt.Errorf("http error: %w", err)
+	}
+	if httpResponse.StatusCode < 200 || httpResponse.StatusCode >= 300 {
+		return nil, fmt.Errorf("http status: %d", httpResponse.StatusCode)
+	}
+	var result IntrospectionResult
+	if err := json.NewDecoder(httpResponse.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("json decode error: %w", err)
+	}
+	return &result, nil
 }
 
 func respondUnauthorized(config Config, errorCode string, errorDescription string, response http.ResponseWriter) {
