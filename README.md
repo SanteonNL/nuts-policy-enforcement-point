@@ -9,3 +9,20 @@ It provides the following features:
 - Support for informing the OAuth2 client of the Nuts Authorization Server through https://www.ietf.org/archive/id/draft-ietf-oauth-resource-metadata-07.html
 
 It can also be used as standalone, reverse proxy deployed in front of the upstream Resource Server.
+
+## Example usage
+
+```go
+baseURL, _ := url.Parse("https://example.com/resource")
+config := Config{
+    TokenIntrospectionEndpoint: authorizationServer.URL,
+    TokenIntrospectionClient:   authorizationServer.Client(),
+    BaseURL:                    baseURL,
+}
+mux := http.NewServeMux()
+mux.HandleFunc("/", Secure(config, func(response http.ResponseWriter, request *http.Request) {
+    userInfo = UserInfo(request.Context())
+    response.WriteHeader(http.StatusOK)
+    _, _ = response.Write([]byte("Hello, " + userInfo["sub"].(string)))
+}))
+```
