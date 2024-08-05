@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/SanteonNL/nuts-pep/middleware"
+	"github.com/SanteonNL/nuts-policy-enforcement-point/middleware"
 	"github.com/rs/zerolog/log"
 	"net/http"
 	"net/http/httputil"
