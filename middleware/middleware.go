@@ -81,7 +81,7 @@ func respondUnauthorized(config Config, errorCode string, errorDescription strin
 		fmt.Sprintf(`error_description="%s"`, errorDescription),
 	}
 	if config.BaseURL != nil {
-		resourceMetadataURL := config.BaseURL.JoinPath(".well-known", config.BaseURL.Path)
+		resourceMetadataURL := config.BaseURL.JoinPath(".well-known", "oauth-protected-resource")
 		wwwAuthParams = append(wwwAuthParams, fmt.Sprintf(`resource_metadata="%s"`, resourceMetadataURL))
 	}
 	response.Header().Set("WWW-Authenticate", fmt.Sprintf("Bearer %s", strings.Join(wwwAuthParams, ", ")))

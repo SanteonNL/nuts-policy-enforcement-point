@@ -94,7 +94,34 @@ func TestMiddleware(t *testing.T) {
 			t.Fatalf("expected HTTP status 401, but was %d", httpResponse.StatusCode)
 		}
 		wwwAuthHeader := httpResponse.Header.Get("WWW-Authenticate")
-		expectedResourceMetadata := `resource_metadata="` + baseURL.JoinPath(".well-known", baseURL.Path).String() + `"`
+		expectedResourceMetadata := `resource_metadata="` + baseURL.JoinPath(".well-known", "oauth-protected-resource").String() + `"`
+		if !strings.Contains(wwwAuthHeader, expectedResourceMetadata) {
+			t.Fatalf("expected WWW-Authenticate header to contain: %s", expectedResourceMetadata)
+		}
+	})
+	t.Run("unauthorized response with non-root protected-resource-metadata URL", func(t *testing.T) {
+		mux := http.NewServeMux()
+		baseURL, _ := url.Parse("https://example.com/sub/path")
+		mux.HandleFunc("/", Secure(Config{
+			TokenIntrospectionEndpoint: authorizationServer.URL,
+			TokenIntrospectionClient:   authorizationServer.Client(),
+			BaseURL:                    baseURL,
+		}, func(response http.ResponseWriter, request *http.Request) {
+			response.WriteHeader(http.StatusOK)
+		}))
+		securedServer := httptest.NewServer(mux)
+
+		httpRequest, _ := http.NewRequest("GET", securedServer.URL, nil)
+
+		httpResponse, err := securedServer.Client().Do(httpRequest)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if httpResponse.StatusCode != http.StatusUnauthorized {
+			t.Fatalf("expected HTTP status 401, but was %d", httpResponse.StatusCode)
+		}
+		wwwAuthHeader := httpResponse.Header.Get("WWW-Authenticate")
+		expectedResourceMetadata := `resource_metadata="` + baseURL.JoinPath(".well-known", "oauth-protected-resource").String() + `"`
 		if !strings.Contains(wwwAuthHeader, expectedResourceMetadata) {
 			t.Fatalf("expected WWW-Authenticate header to contain: %s", expectedResourceMetadata)
 		}
