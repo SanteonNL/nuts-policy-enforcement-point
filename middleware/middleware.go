@@ -20,6 +20,7 @@ func Secure(config Config, handler func(response http.ResponseWriter, request *h
 	return func(response http.ResponseWriter, request *http.Request) {
 		_, accessToken, err := parseAuthorizationHeader(request.Header.Get("Authorization"))
 		if err != nil {
+			log.Ctx(request.Context()).Info().Msgf("Invalid Authorization header: %s", err)
 			respondUnauthorized(config, "invalid_request", err.Error(), response)
 			return
 		}
@@ -30,6 +31,7 @@ func Secure(config Config, handler func(response http.ResponseWriter, request *h
 			return
 		}
 		if !introspectionResponse.Active() {
+			log.Ctx(request.Context()).Info().Msg("Access token is unknown or expired")
 			respondUnauthorized(config, "invalid_request", "invalid/expired token", response)
 			return
 		}
